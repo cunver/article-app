@@ -1,0 +1,14 @@
+
+server:
+  port: 8081
+
+database:
+  useStub : false
+  dbserver: "localhost" 
+  dbport: "27017"
+  dbname: "local"
+  maxpoolsize : 100
+
+#Maximum record count per page in query results
+application:
+  maxrecordperpage: 12

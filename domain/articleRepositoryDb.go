@@ -4,7 +4,6 @@ import (
 	"article-app/config"
 	"context"
 	"errors"
-	"fmt"
 	"math"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -22,47 +21,11 @@ func NewArticleRepositoryDb() ArticleRepositoryDb {
 }
 
 func (d ArticleRepositoryDb) FindAll(currentPage uint32) (ArticleQueryResult, int, error) {
-	articlesCollection := GetArticlesCollection()
+	return d.findAllByText("", currentPage)
+}
 
-	count, err := articlesCollection.CountDocuments(context.TODO(), bson.D{}, nil)
-	if err != nil {
-		return ArticleQueryResult{}, ERROR_COUNT_QUERY_FAILED, err
-	}
-
-	opts := options.Find().SetSkip(int64(currentPage-1) * int64(ARTICLE_PER_PAGE))
-	opts.SetLimit(int64(ARTICLE_PER_PAGE))
-	opts.SetSort(bson.D{{Key: "_id", Value: 1}})
-
-	cursor, err := articlesCollection.Find(context.TODO(), bson.D{}, opts)
-	if err != nil {
-		return ArticleQueryResult{}, ERROR_QUERY_FAILED, err
-	}
-
-	var articles []Article
-	var results []bson.M
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		return ArticleQueryResult{}, ERROR_QUERY_RESULT_MAPPING_FAILED, err
-	}
-	articles = getArticlesFromResultReturn(results)
-	totalCount := uint32(count)
-	var totalPage uint32
-	if totalCount == 0 {
-		totalPage = totalCount
-	} else if math.Mod(float64(totalCount), float64(ARTICLE_PER_PAGE)) == 0 {
-		totalPage = (totalCount / ARTICLE_PER_PAGE)
-	} else {
-		totalPage = (totalCount / ARTICLE_PER_PAGE) + 1
-	}
-	articleQueryResult := ArticleQueryResult{
-		TotalCount:  totalCount,
-		TotalPage:   totalPage,
-		CurrentPage: currentPage,
-		PerPage:     ARTICLE_PER_PAGE,
-		Keyword:     "",
-		Data:        articles,
-	}
-
-	return articleQueryResult, SUCCESS_OK, err
+func (d ArticleRepositoryDb) FindByText(searchText string, currentPage uint32) (ArticleQueryResult, int, error) {
+	return d.findAllByText(searchText, currentPage)
 }
 
 func (d ArticleRepositoryDb) FindOne(id string) (Article, int, error) {
@@ -81,85 +44,93 @@ func (d ArticleRepositoryDb) FindOne(id string) (Article, int, error) {
 	return article, SUCCESS_OK, nil
 }
 
-func getArticlesFromResultReturn(results []bson.M) []Article {
-	var articles []Article
-	var tempArticle Article
-	fmt.Printf("Result size %v", len(results))
-	for _, result := range results {
-		fmt.Println(result)
-		bsonBytes, _ := bson.Marshal(result)
-		bson.Unmarshal(bsonBytes, &tempArticle)
-		articles = append(articles, tempArticle)
-	}
-	return articles
-}
-
 func (d ArticleRepositoryDb) InsertOne(article *Article) (string, error) {
 	articlesCollection := GetArticlesCollection()
 	res, err := articlesCollection.InsertOne(context.TODO(), article)
 	if err != nil {
 		return "", err
-		//fmt.Println("Article inserted to mongodb with Id: "+res.InsertedID)
 	}
-
 	return res.InsertedID.(primitive.ObjectID).Hex(), nil
 }
 
-func (d ArticleRepositoryDb) FindByText(searchText string, currentPage uint32) (ArticleQueryResult, error) {
+func getArticlesFromResultReturn(results []bson.M) []Article {
+	var articles []Article
+	var tempArticle Article
+	for _, result := range results {
+		bsonBytes, _ := bson.Marshal(result)
+		bson.Unmarshal(bsonBytes, &tempArticle)
+		articles = append(articles, tempArticle)
+	}
+	if articles == nil {
+		articles = []Article{}
+	}
+	return articles
+}
 
-	fmt.Printf("Searching mongodb for searchText:" + searchText + "-")
+func (d ArticleRepositoryDb) findAllByText(searchText string, currentPage uint32) (ArticleQueryResult, int, error) {
+	ARTICLE_PER_PAGE := config.GetMaxRecordPerPage()
 	articlesCollection := GetArticlesCollection()
 
-	filter := bson.M{
-		"$text": bson.M{
-			"$search": searchText,
-		},
+	var filter interface{}
+	if len(searchText) > 0 {
+		filter = bson.M{
+			"$text": bson.M{
+				"$search": searchText,
+			},
+		}
+	} else {
+		filter = bson.D{}
 	}
-
 	count, err := articlesCollection.CountDocuments(context.TODO(), filter, nil)
 	if err != nil {
-		fmt.Printf("Search article count error : %v", err.Error())
+		return ArticleQueryResult{}, ERROR_COUNT_QUERY_FAILED, err
 	}
 
-	opts := options.Find().SetSkip(int64(currentPage-1) * int64(ARTICLE_PER_PAGE))
-	opts.SetLimit(int64(ARTICLE_PER_PAGE))
-	opts.SetSort(bson.D{{Key: "_id", Value: 1}})
-	cursor, err := articlesCollection.Find(context.TODO(), filter, opts, nil)
+	opts := getFindOptions(currentPage, config.GetMaxRecordPerPage())
+
+	cursor, err := articlesCollection.Find(context.TODO(), filter, opts)
 	if err != nil {
-		fmt.Printf("Search article find error : %v", err.Error())
+		return ArticleQueryResult{}, ERROR_QUERY_FAILED, err
 	}
 
-	// Get a list of all returned documents and print them out.
-	// See the mongo.Cursor documentation for more examples of using cursors.
 	var articles []Article
 	var results []bson.M
 	if err = cursor.All(context.TODO(), &results); err != nil {
-		fmt.Printf("Search article error : %v", err.Error())
-	} else {
-		articles = getArticlesFromResultReturn(results)
-
+		return ArticleQueryResult{}, ERROR_QUERY_RESULT_MAPPING_FAILED, err
 	}
+	articles = getArticlesFromResultReturn(results)
 
 	totalCount := uint32(count)
-	var totalPage uint32
-	if totalCount == 0 {
-		totalPage = totalCount
-	} else if math.Mod(float64(totalCount), float64(ARTICLE_PER_PAGE)) == 0 {
-		totalPage = (totalCount / ARTICLE_PER_PAGE)
-	} else {
-		totalPage = (totalCount / ARTICLE_PER_PAGE) + 1
-	}
 
 	articleQueryResult := ArticleQueryResult{
 		TotalCount:  totalCount,
-		TotalPage:   totalPage,
+		TotalPage:   getTotalPage(totalCount, config.GetMaxRecordPerPage()),
 		CurrentPage: currentPage,
 		PerPage:     ARTICLE_PER_PAGE,
 		Keyword:     searchText,
 		Data:        articles,
 	}
 
-	return articleQueryResult, err
+	return articleQueryResult, SUCCESS_OK, err
+}
+
+func getFindOptions(currentPage uint32, articlePerPage uint32) *options.FindOptions {
+	opts := options.Find().SetSkip(int64(currentPage-1) * int64(articlePerPage))
+	opts.SetLimit(int64(articlePerPage))
+	opts.SetSort(bson.D{{Key: "_id", Value: 1}})
+	return opts
+}
+
+func getTotalPage(totalCount uint32, articlePerPage uint32) uint32 {
+	var totalPage uint32
+	if totalCount == 0 {
+		totalPage = totalCount
+	} else if math.Mod(float64(totalCount), float64(articlePerPage)) == 0 {
+		totalPage = (totalCount / articlePerPage)
+	} else {
+		totalPage = (totalCount / articlePerPage) + 1
+	}
+	return totalPage
 }
 
 func GetArticlesCollection() *mongo.Collection {

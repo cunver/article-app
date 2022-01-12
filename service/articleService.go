@@ -7,7 +7,7 @@ import (
 type ArticleService interface {
 	GetArticles(currentPage uint32) (domain.ArticleQueryResult, int, error)
 	PublishArticle(article *domain.Article) (string, error)
-	SearchArticle(searchText string, currentPage uint32) (domain.ArticleQueryResult, error)
+	SearchArticle(searchText string, currentPage uint32) (domain.ArticleQueryResult, int, error)
 	GetArticleById(id string) (domain.Article, int, error)
 }
 
@@ -32,6 +32,6 @@ func (s DefaultArticleService) PublishArticle(article *domain.Article) (string, 
 	return s.repo.InsertOne(article)
 }
 
-func (s DefaultArticleService) SearchArticle(searchText string, currrentPage uint32) (domain.ArticleQueryResult, error) {
+func (s DefaultArticleService) SearchArticle(searchText string, currrentPage uint32) (domain.ArticleQueryResult, int, error) {
 	return s.repo.FindByText(searchText, currrentPage)
 }

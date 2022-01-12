@@ -13,17 +13,18 @@ import (
 func GetMongoDBConnection() *mongo.Database {
 	// Database Config
 	var err error
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://" + GetDBConfig().DBServer + ":" + GetDBConfig().DBPort)
+	clientOptions.SetMaxPoolSize(uint64(GetDBConfig().MaxPoolSize))
 	newClient, err := mongo.NewClient(clientOptions)
 	if err != nil {
-		log.Println("Couldn't created client", err)
+		log.Fatal("Couldn't created client", err)
 	}
 
 	//Set up a context required by mongo.Connect
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	err = newClient.Connect(ctx)
 	if err != nil {
-		log.Println("Couldn't connected with context", err)
+		log.Fatal("Couldn't connected with context", err)
 	}
 	//Cancel context to avoid memory leak
 	defer cancel()
@@ -31,11 +32,11 @@ func GetMongoDBConnection() *mongo.Database {
 	// Ping our db connection
 	err = newClient.Ping(context.Background(), readpref.Primary())
 	if err != nil {
-		log.Println("Couldn't connect to the database", err)
+		log.Fatal("Couldn't connect to the database", err)
 	} else {
-		log.Println("Connected!")
+		log.Println("Connected to the database!")
 	}
 	// Connect to the database local
-	db := newClient.Database("local")
+	db := newClient.Database(GetDBConfig().DBName)
 	return db
 }

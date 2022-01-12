@@ -13,12 +13,6 @@ import (
 
 var Articles []domain.Article
 
-/*
-/publishArticle
-/getArticles
-/searchArticle
-*/
-
 type ErrorResponse struct {
 	Message string `json:"error"`
 }
@@ -32,13 +26,94 @@ type ArticleHandlers struct {
 
 func (ah *ArticleHandlers) getArticles(w http.ResponseWriter, r *http.Request) {
 	setConentTypeAsJson(w)
-	articles, errCode, err := ah.service.GetArticles(1)
+	vars := mux.Vars(r)
+	currentPage := getCurrentPageParameter(vars)
+	articles, errCode, err := ah.service.GetArticles(currentPage)
 	if err != nil {
 		message := getErrorMessageFromErrorCode(errCode)
-		handleErrorResponse(w, http.StatusInternalServerError, "Could not get articles. Error:"+message)
+		handleErrorResponse(w, http.StatusInternalServerError, "Could not get articles for page. Error:"+message)
 		return
 	}
-	json.NewEncoder(w).Encode(articles)
+	handleSuccessResponse(w, articles)
+}
+
+func (ah *ArticleHandlers) publishArticle(w http.ResponseWriter, r *http.Request) {
+	setConentTypeAsJson(w)
+	var articleInput domain.Article
+	json.NewDecoder(r.Body).Decode(&articleInput)
+	id, err := ah.service.PublishArticle(&articleInput)
+	if err != nil {
+		handleErrorResponse(w, http.StatusInternalServerError, "Could not publish the article. Error"+err.Error())
+		return
+	}
+	handleSuccessResponse(w, PublishResponse{Id: id})
+}
+
+func (ah *ArticleHandlers) searchArticleForPage(w http.ResponseWriter, r *http.Request) {
+	setConentTypeAsJson(w)
+	searchTextParam := r.URL.Query().Get("searchText")
+	currentPageParam := r.URL.Query().Get("page")
+	page := getCurrentPageFromParamStr(currentPageParam)
+	articleQueryResult, errCode, err := ah.service.SearchArticle(searchTextParam, page)
+	if err != nil {
+		message := getErrorMessageFromErrorCode(errCode)
+		handleErrorResponse(w, http.StatusInternalServerError, "Could not search articles. Error:"+message)
+		return
+	}
+	handleSuccessResponse(w, articleQueryResult)
+}
+
+func (ah *ArticleHandlers) getArticleById(w http.ResponseWriter, r *http.Request) {
+	setConentTypeAsJson(w)
+	vars := mux.Vars(r)
+	article, errCode, err := ah.service.GetArticleById(vars["id"])
+	if err == nil {
+		handleSuccessResponse(w, article)
+	} else {
+		handleErrorResponse(w, getStatusCodeFromErrorCode(errCode), err.Error())
+	}
+}
+
+func getCurrentPageParameter(varsMap map[string]string) uint32 {
+	currentPageStr := varsMap["page"]
+	if currentPageStr == "" {
+		return 1 // if no specific page id given in parameters use 1 to get the first page
+	} else {
+		currentPageInt, err := strconv.ParseUint(currentPageStr, 10, 64)
+		if err == nil {
+			return uint32(currentPageInt)
+		}
+	}
+	return 1
+}
+
+func getCurrentPageFromParamStr(currentPageStr string) uint32 {
+	var page uint32 = 1
+	if len(currentPageStr) > 0 {
+		currentPageInt, err := strconv.ParseUint(currentPageStr, 10, 64)
+		if err == nil {
+			page = uint32(currentPageInt)
+		} else {
+			log.Printf("getCurrentPage parse error for : %v, error:%v", currentPageStr, err)
+		}
+	}
+	return page
+}
+
+func handleSuccessResponse(w http.ResponseWriter, v interface{}) {
+	json.NewEncoder(w).Encode(v)
+}
+
+func handleErrorResponse(w http.ResponseWriter, statusCode int, err string) {
+	w.WriteHeader(statusCode)
+	errResponse := ErrorResponse{
+		Message: err,
+	}
+	json.NewEncoder(w).Encode(errResponse)
+}
+
+func setConentTypeAsJson(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
 }
 
 func getErrorMessageFromErrorCode(errorCode int) string {
@@ -56,107 +131,12 @@ func getErrorMessageFromErrorCode(errorCode int) string {
 	return message
 }
 
-func (ah *ArticleHandlers) getArticlesForPage(w http.ResponseWriter, r *http.Request) {
-	setConentTypeAsJson(w)
-	vars := mux.Vars(r)
-	currentPage := getCurrentPage(vars)
-	articles, errCode, err := ah.service.GetArticles(currentPage)
-	if err != nil {
-		message := getErrorMessageFromErrorCode(errCode)
-		handleErrorResponse(w, http.StatusInternalServerError, "Could not get articles for page. Error:"+message)
-		return
+func getStatusCodeFromErrorCode(errorCode int) int {
+	var httpStatusCode int = http.StatusInternalServerError
+	if errorCode == domain.ERROR_OBJECT_ID_NOT_VALID {
+		httpStatusCode = http.StatusNotAcceptable
+	} else if errorCode == domain.ERROR_RECORD_NOT_FOUND {
+		httpStatusCode = http.StatusNotFound
 	}
-	json.NewEncoder(w).Encode(articles)
+	return httpStatusCode
 }
-
-func (ah *ArticleHandlers) publishArticle(w http.ResponseWriter, r *http.Request) {
-	setConentTypeAsJson(w)
-	var articleInput domain.Article
-	json.NewDecoder(r.Body).Decode(&articleInput)
-
-	id, err := ah.service.PublishArticle(&articleInput)
-	if err != nil {
-		handleErrorResponse(w, http.StatusInternalServerError, "Article could not published. Error"+err.Error())
-		return
-	}
-	publishResponse := PublishResponse{
-		Id: id,
-	}
-	json.NewEncoder(w).Encode(publishResponse)
-	log.Println(err)
-}
-
-func (ah *ArticleHandlers) searchArticle(w http.ResponseWriter, r *http.Request) {
-	ah.searchArticleForTextAndCurrentPage(w, r, 1)
-}
-
-func (ah *ArticleHandlers) searchArticleForPage(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	currentPage := getCurrentPage(vars)
-	ah.searchArticleForTextAndCurrentPage(w, r, currentPage)
-}
-
-func getCurrentPage(varsMap map[string]string) uint32 {
-	currentPageStr := varsMap["page"]
-	if currentPageStr == "" {
-		return 1
-	} else {
-		currentPageInt, err := strconv.ParseUint(currentPageStr, 10, 64)
-		if err == nil {
-			return uint32(currentPageInt)
-		}
-	}
-	return 1
-}
-
-func (ah *ArticleHandlers) searchArticleForTextAndCurrentPage(w http.ResponseWriter, r *http.Request, currentPage uint32) {
-	setConentTypeAsJson(w)
-	vars := mux.Vars(r)
-	searchText := vars["searchText"]
-	articleQueryResult, _ := ah.service.SearchArticle(searchText, currentPage)
-	json.NewEncoder(w).Encode(articleQueryResult)
-}
-
-func (ah *ArticleHandlers) getArticleById(w http.ResponseWriter, r *http.Request) {
-	setConentTypeAsJson(w)
-	vars := mux.Vars(r)
-	article, errCode, err := ah.service.GetArticleById(vars["id"])
-	if err == nil {
-		json.NewEncoder(w).Encode(article)
-	} else {
-		var httpStatusCode int = http.StatusInternalServerError
-		if errCode == domain.ERROR_OBJECT_ID_NOT_VALID {
-			httpStatusCode = http.StatusNotAcceptable
-		} else if errCode == domain.ERROR_RECORD_NOT_FOUND {
-			httpStatusCode = http.StatusNotFound
-		}
-		handleErrorResponse(w, httpStatusCode, err.Error())
-
-	}
-}
-
-func handleErrorResponse(w http.ResponseWriter, statusCode int, err string) {
-	w.WriteHeader(statusCode)
-	errResponse := ErrorResponse{
-		Message: err,
-	}
-	json.NewEncoder(w).Encode(errResponse)
-}
-
-func setConentTypeAsJson(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-}
-
-/*
-func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
-	w.WriteHeader(status)
-	switch status {
-	case http.StatusBadRequest:
-		fmt.Println("Custom bad request error")
-	case http.StatusNotFound:
-		fmt.Println("Custom Not found")
-	default:
-		fmt.Println("Custom Default error")
-	}
-}
-*/

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"article-app/config"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,11 +25,11 @@ func (s ArticleRepositoryStub) InsertOne(article *Article) (string, error) {
 	return "61db01c1a44382e1f4161b55", nil
 }
 
-func (s ArticleRepositoryStub) FindByText(searchText string, currentPage uint32) (ArticleQueryResult, error) {
+func (s ArticleRepositoryStub) FindByText(searchText string, currentPage uint32) (ArticleQueryResult, int, error) {
 	articleQueryResult := s.getStubArticleQueryResult()
 	articleQueryResult.CurrentPage = currentPage
 	articleQueryResult.Keyword = searchText
-	return articleQueryResult, nil
+	return articleQueryResult, SUCCESS_OK, nil
 }
 
 func NewArticleRepositoryStub() ArticleRepositoryStub {
@@ -45,6 +46,7 @@ func generateTestArticle() []Article {
 }
 
 func (s ArticleRepositoryStub) getStubArticleQueryResult() ArticleQueryResult {
+	ARTICLE_PER_PAGE := config.GetMaxRecordPerPage()
 	count := uint32(len(s.articles))
 	articleQueryResult := ArticleQueryResult{
 		TotalCount:  count,
