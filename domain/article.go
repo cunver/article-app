@@ -34,7 +34,3 @@ const ERROR_OBJECT_ID_NOT_VALID int = 2
 const ERROR_COUNT_QUERY_FAILED int = 3
 const ERROR_QUERY_FAILED int = 4
 const ERROR_QUERY_RESULT_MAPPING_FAILED = 5
-
-func init() {
-
-}

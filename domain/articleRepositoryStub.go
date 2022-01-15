@@ -11,7 +11,6 @@ type ArticleRepositoryStub struct {
 	articles []Article
 }
 
-/* attach the function to stub*/
 func (s ArticleRepositoryStub) FindAll(currentPage uint32) (ArticleQueryResult, int, error) {
 	return s.getStubArticleQueryResult(), SUCCESS_OK, nil
 }
@@ -50,7 +49,7 @@ func (s ArticleRepositoryStub) getStubArticleQueryResult() ArticleQueryResult {
 	count := uint32(len(s.articles))
 	articleQueryResult := ArticleQueryResult{
 		TotalCount:  count,
-		TotalPage:   count / ARTICLE_PER_PAGE,
+		TotalPage:   getTotalPage(count, ARTICLE_PER_PAGE),
 		CurrentPage: 1,
 		PerPage:     ARTICLE_PER_PAGE,
 		Keyword:     "",

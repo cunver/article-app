@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -51,7 +52,12 @@ func (ah *ArticleHandlers) publishArticle(w http.ResponseWriter, r *http.Request
 
 func (ah *ArticleHandlers) searchArticleForPage(w http.ResponseWriter, r *http.Request) {
 	setConentTypeAsJson(w)
-	searchTextParam := r.URL.Query().Get("searchText")
+	parsedURL, err := url.Parse(r.URL.String())
+	if err != nil {
+		handleErrorResponse(w, http.StatusInternalServerError, "Could not search parse URL. Error:"+err.Error())
+		return
+	}
+	searchTextParam := parsedURL.Query().Get("searchText")
 	currentPageParam := r.URL.Query().Get("page")
 	page := getCurrentPageFromParamStr(currentPageParam)
 	articleQueryResult, errCode, err := ah.service.SearchArticle(searchTextParam, page)

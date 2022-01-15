@@ -11,26 +11,46 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func Start() {
-	//wiring
-	var ah ArticleHandlers
-	if config.UseStubDB() {
-		ah = ArticleHandlers{service.NewArticleService(domain.NewArticleRepositoryStub())}
-	} else {
-		ah = ArticleHandlers{service.NewArticleService(domain.NewArticleRepositoryDb())}
-	}
+const PATH_ARTICLES string = "/api/v1/articles"
+const PATH_ARTICLES_SEARCH string = "/api/v1/articles/search"
+const PATH_ARTICLES_PAGE string = "/api/v1/articles/page/{page}"
+const PATH_ARTICLES_ID string = "/api/v1/articles/{id}"
 
-	handleRequests(&ah)
+func Start() {
+	config.ReadConfig()
+	router := CreateRouterWithRoutes()
+	serveRouter(router)
 }
 
-func handleRequests(ah *ArticleHandlers) {
+func CreateRouterWithRoutes() *mux.Router {
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/articles", ah.getArticles).Methods(http.MethodGet)
-	router.HandleFunc("/api/v1/articles", ah.publishArticle).Methods(http.MethodPost) //publishArticle
-	router.HandleFunc("/api/v1/articles/search", ah.searchArticleForPage).Methods(http.MethodGet)
+	setHandlers(router, getArticleHandler())
+	return router
+}
 
-	router.HandleFunc("/api/v1/articles/page/{page}", ah.getArticles).Methods(http.MethodGet)
-	router.HandleFunc("/api/v1/articles/id/{id}", ah.getArticleById).Methods(http.MethodGet)
+func setHandlers(router *mux.Router, ah *ArticleHandlers) {
+	router.HandleFunc(PATH_ARTICLES, ah.getArticles).Methods(http.MethodGet)                 //getArticles
+	router.HandleFunc(PATH_ARTICLES, ah.publishArticle).Methods(http.MethodPost)             //publishArticle
+	router.HandleFunc(PATH_ARTICLES_SEARCH, ah.searchArticleForPage).Methods(http.MethodGet) //searchArticles
+	router.HandleFunc(PATH_ARTICLES_PAGE, ah.getArticles).Methods(http.MethodGet)            //getArticlesForPage
+	router.HandleFunc(PATH_ARTICLES_ID, ah.getArticleById).Methods(http.MethodGet)           //getArticleById
+}
+
+func getArticleHandler() *ArticleHandlers {
+	ah := ArticleHandlers{service.NewArticleService(getRepository())}
+	return &ah
+}
+
+func getRepository() domain.ArticleRepository {
+	var repository domain.ArticleRepository
+	if config.UseStubDB() {
+		repository = domain.NewArticleRepositoryStub()
+	} else {
+		repository = domain.NewArticleRepositoryDb()
+	}
+	return repository
+}
+func serveRouter(router *mux.Router) {
 	log.Fatal(http.ListenAndServe((":" + strconv.Itoa(config.GetServerConfig().Port)), router))
 	//log.Fatal(http.ListenAndServeTLS(":443", "server.crt", "server.key", nil))
 }

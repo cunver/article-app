@@ -1,14 +1,14 @@
 
 server:
-  port: 8081
+  port: 8080
 
 database:
-  useStub : false
   dbserver: "localhost" 
   dbport: "27017"
   dbname: "local"
   maxpoolsize : 100
 
-#Maximum record count per page in query results
+
 application:
-  maxrecordperpage: 12
+  useStubDB : false # false -> (Real Mongo DB instance) true -> (Stub DB with sample responses) 
+  maxrecordperpage: 12 #Maximum record count per page in query results

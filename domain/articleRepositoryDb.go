@@ -35,6 +35,7 @@ func (d ArticleRepositoryDb) FindOne(id string) (Article, int, error) {
 		return Article{}, ERROR_OBJECT_ID_NOT_VALID, err
 	}
 	filter := bson.D{{Key: "_id", Value: objectId}}
+
 	singleResult := articlesCollection.FindOne(context.TODO(), filter)
 	var article Article
 	err = singleResult.Decode(&article) // gets ErrNoDocuments if no result
@@ -51,20 +52,6 @@ func (d ArticleRepositoryDb) InsertOne(article *Article) (string, error) {
 		return "", err
 	}
 	return res.InsertedID.(primitive.ObjectID).Hex(), nil
-}
-
-func getArticlesFromResultReturn(results []bson.M) []Article {
-	var articles []Article
-	var tempArticle Article
-	for _, result := range results {
-		bsonBytes, _ := bson.Marshal(result)
-		bson.Unmarshal(bsonBytes, &tempArticle)
-		articles = append(articles, tempArticle)
-	}
-	if articles == nil {
-		articles = []Article{}
-	}
-	return articles
 }
 
 func (d ArticleRepositoryDb) findAllByText(searchText string, currentPage uint32) (ArticleQueryResult, int, error) {
@@ -112,6 +99,20 @@ func (d ArticleRepositoryDb) findAllByText(searchText string, currentPage uint32
 	}
 
 	return articleQueryResult, SUCCESS_OK, err
+}
+
+func getArticlesFromResultReturn(results []bson.M) []Article {
+	var articles []Article
+	var tempArticle Article
+	for _, result := range results {
+		bsonBytes, _ := bson.Marshal(result)
+		bson.Unmarshal(bsonBytes, &tempArticle)
+		articles = append(articles, tempArticle)
+	}
+	if articles == nil {
+		articles = []Article{}
+	}
+	return articles
 }
 
 func getFindOptions(currentPage uint32, articlePerPage uint32) *options.FindOptions {

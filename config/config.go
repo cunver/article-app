@@ -2,23 +2,21 @@ package config
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/viper"
 )
 
-// Configurations exported
 type Configurations struct {
 	Server      ServerConfigurations
 	Database    DatabaseConfigurations
 	Application ApplicationConfigurations
 }
 
-// ServerConfigurations exported
 type ServerConfigurations struct {
 	Port int
 }
 
-// DatabaseConfigurations exported
 type DatabaseConfigurations struct {
 	DBServer    string
 	DBPort      string
@@ -36,37 +34,22 @@ var configuration Configurations
 func ReadConfig() {
 	// Set the file name of the configurations file
 	viper.SetConfigName("config")
-
 	// Set the path to look for the configurations file
 	viper.AddConfigPath(".")
-
+	viper.AddConfigPath("../") // for the test cases running in inner folders configpath will be one more level up
 	// Enable VIPER to read Environment Variables
 	viper.AutomaticEnv()
-
 	viper.SetConfigType("yml")
-
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Printf("Error reading config file, %s", err)
+		log.Fatalf("Error reading config file, %s", err)
 	}
-
 	// Set undefined variables
-	viper.SetDefault("database.dbname", "local")
-
+	//viper.SetDefault("database.dbname", "local")
 	err := viper.Unmarshal(&configuration)
 	if err != nil {
-		fmt.Printf("Unable to decode into struct, %v", err)
+		log.Fatalf("Unable to decode into struct, %v", err)
 	}
-
-	// Reading variables using the model
-	fmt.Println("Reading variables using the model..")
-	fmt.Println("Server Port is\t\t", configuration.Server.Port)
-	fmt.Println("Database Server is\t", configuration.Database.DBServer)
-	fmt.Println("Database Port is\t", configuration.Database.DBPort)
-	fmt.Println("Database Name is\t", configuration.Database.DBName)
-	fmt.Println("Database MaxPoolSize is\t", configuration.Database.MaxPoolSize)
-	fmt.Println("Application UseStubDB is\t", configuration.Application.UseStubDB)
-	fmt.Println("Application Pagination parameter MaxRecordPerPage is\t", configuration.Application.MaxRecordPerPage)
-
+	printConfigParams()
 }
 
 func GetServerConfig() ServerConfigurations {
@@ -85,6 +68,15 @@ func UseStubDB() bool {
 	return configuration.Application.UseStubDB
 }
 
-func init() {
-	ReadConfig()
+func printConfigParams() {
+	// Reading variables using the model
+	fmt.Println("Reading variables using the model..")
+	fmt.Println("Server Port is\t\t", configuration.Server.Port)
+	fmt.Println("Database Server is\t", configuration.Database.DBServer)
+	fmt.Println("Database Port is\t", configuration.Database.DBPort)
+	fmt.Println("Database Name is\t", configuration.Database.DBName)
+	fmt.Println("Database MaxPoolSize is\t", configuration.Database.MaxPoolSize)
+	fmt.Println("Application UseStubDB is\t", configuration.Application.UseStubDB)
+	fmt.Println("Application Pagination parameter MaxRecordPerPage is\t", configuration.Application.MaxRecordPerPage)
+
 }
