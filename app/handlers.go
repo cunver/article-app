@@ -4,6 +4,7 @@ import (
 	"article-app/domain"
 	"article-app/service"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -42,9 +43,14 @@ func (ah *ArticleHandlers) publishArticle(w http.ResponseWriter, r *http.Request
 	setConentTypeAsJson(w)
 	var articleInput domain.Article
 	json.NewDecoder(r.Body).Decode(&articleInput)
+	err := validateArticleBeforePublish(articleInput)
+	if err != nil {
+		handleErrorResponse(w, http.StatusBadRequest, "Article input is not valid. Error:"+err.Error())
+		return
+	}
 	id, err := ah.service.PublishArticle(&articleInput)
 	if err != nil {
-		handleErrorResponse(w, http.StatusInternalServerError, "Could not publish the article. Error"+err.Error())
+		handleErrorResponse(w, http.StatusInternalServerError, "Could not publish the article. Error:"+err.Error())
 		return
 	}
 	handleSuccessResponse(w, PublishResponse{Id: id})
@@ -78,6 +84,19 @@ func (ah *ArticleHandlers) getArticleById(w http.ResponseWriter, r *http.Request
 	} else {
 		handleErrorResponse(w, getStatusCodeFromErrorCode(errCode), err.Error())
 	}
+}
+
+func validateArticleBeforePublish(a domain.Article) error {
+	if len(a.Id) == 0 {
+		return errors.New("id can not be empty")
+	} else if len(a.Title) == 0 {
+		return errors.New("title can not be empty")
+	} else if len(a.Intro) == 0 {
+		return errors.New("intro can not be empty")
+	} else if len(a.Body) == 0 {
+		return errors.New("body can not be empty")
+	}
+	return nil
 }
 
 func getCurrentPageParameter(varsMap map[string]string) uint32 {
@@ -132,7 +151,7 @@ func getErrorMessageFromErrorCode(errorCode int) string {
 	case domain.ERROR_QUERY_RESULT_MAPPING_FAILED:
 		message = "Query result mapping error."
 	default:
-		message = "Unexpected error"
+		message = "Unexpected error."
 	}
 	return message
 }

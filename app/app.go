@@ -18,6 +18,7 @@ const PATH_ARTICLES_ID string = "/api/v1/articles/{id}"
 
 func Start() {
 	config.ReadConfig()
+	config.PrintConfigParams()
 	router := CreateRouterWithRoutes()
 	serveRouter(router)
 }
@@ -32,8 +33,9 @@ func setHandlers(router *mux.Router, ah *ArticleHandlers) {
 	router.HandleFunc(PATH_ARTICLES, ah.getArticles).Methods(http.MethodGet)                 //getArticles
 	router.HandleFunc(PATH_ARTICLES, ah.publishArticle).Methods(http.MethodPost)             //publishArticle
 	router.HandleFunc(PATH_ARTICLES_SEARCH, ah.searchArticleForPage).Methods(http.MethodGet) //searchArticles
-	router.HandleFunc(PATH_ARTICLES_PAGE, ah.getArticles).Methods(http.MethodGet)            //getArticlesForPage
-	router.HandleFunc(PATH_ARTICLES_ID, ah.getArticleById).Methods(http.MethodGet)           //getArticleById
+
+	router.HandleFunc(PATH_ARTICLES_PAGE, ah.getArticles).Methods(http.MethodGet)  //getArticlesForPage
+	router.HandleFunc(PATH_ARTICLES_ID, ah.getArticleById).Methods(http.MethodGet) //getArticleById
 }
 
 func getArticleHandler() *ArticleHandlers {
@@ -50,7 +52,11 @@ func getRepository() domain.ArticleRepository {
 	}
 	return repository
 }
+
 func serveRouter(router *mux.Router) {
-	log.Fatal(http.ListenAndServe((":" + strconv.Itoa(config.GetServerConfig().Port)), router))
-	//log.Fatal(http.ListenAndServeTLS(":443", "server.crt", "server.key", nil))
+	if config.UseTLS() {
+		log.Fatal(http.ListenAndServeTLS(":443", "server.crt", "server.key", router))
+	} else {
+		log.Fatal(http.ListenAndServe((":" + strconv.Itoa(config.GetServerConfig().Port)), router))
+	}
 }

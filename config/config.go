@@ -25,6 +25,7 @@ type DatabaseConfigurations struct {
 }
 
 type ApplicationConfigurations struct {
+	UseTLS           bool
 	UseStubDB        bool
 	MaxRecordPerPage int
 }
@@ -44,12 +45,12 @@ func ReadConfig() {
 		log.Fatalf("Error reading config file, %s", err)
 	}
 	// Set undefined variables
-	//viper.SetDefault("database.dbname", "local")
+	viper.SetDefault("application.maxrecordperpage", 12)
 	err := viper.Unmarshal(&configuration)
 	if err != nil {
 		log.Fatalf("Unable to decode into struct, %v", err)
 	}
-	printConfigParams()
+	//printConfigParams()
 }
 
 func GetServerConfig() ServerConfigurations {
@@ -64,11 +65,15 @@ func GetMaxRecordPerPage() uint32 {
 	return uint32(configuration.Application.MaxRecordPerPage)
 }
 
+func UseTLS() bool {
+	return configuration.Application.UseTLS
+}
+
 func UseStubDB() bool {
 	return configuration.Application.UseStubDB
 }
 
-func printConfigParams() {
+func PrintConfigParams() {
 	// Reading variables using the model
 	fmt.Println("Reading variables using the model..")
 	fmt.Println("Server Port is\t\t", configuration.Server.Port)

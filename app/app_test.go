@@ -3,12 +3,14 @@ package app
 import (
 	"article-app/config"
 	"article-app/domain"
+	"bytes"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -16,20 +18,20 @@ import (
 
 func TestGetArticles(t *testing.T) {
 	w := executeRequestOnRouter(getGetArticlesRequest())
-	fmt.Printf("W body: %v", w.Body.String())
 	logFailIfNotSuccess(w, t)
 	articleQueryResult := getArticleQueryResult(w)
 	logFailIfInvalidQueryResult(articleQueryResult, t)
 }
 
 func TestPublishArticle(t *testing.T) {
-	w := executeRequestOnRouter(getPublishArticleRequest())
+	req := getPublishArticleRequest()
+	w := executeRequestOnRouter(req)
 	logFailIfNotSuccess(w, t)
 	logFailIfInvalidPublishResponse(w, t)
 }
 
 func TestSearchArticleReturnSomeArticles(t *testing.T) {
-	w := executeRequestOnRouter(getSearchArticleRequest("URL%20encode%2Fdecode%2BparseQuery"))
+	w := executeRequestOnRouter(getSearchArticleRequest("%20Go%20"))
 	logFailIfNotSuccess(w, t)
 	articleQueryResult := getArticleQueryResult(w)
 	logFailIfInvalidQueryResult(articleQueryResult, t)
@@ -45,7 +47,7 @@ func TestGetArticlesForPage(t *testing.T) {
 }
 
 func TestGetArticlesById(t *testing.T) {
-	objectId := "61db01d7a44382e1f4161b63"
+	objectId := "61de26895b18304a46524721"
 	w := executeRequestOnRouter(getGetArticlesByIdRequest(objectId))
 	logFailIfNotSuccess(w, t)
 	if w.Code == http.StatusOK {
@@ -95,7 +97,11 @@ func getGetArticlesRequest() *http.Request {
 }
 
 func getPublishArticleRequest() *http.Request {
-	return httptest.NewRequest("POST", PATH_ARTICLES, nil)
+	article, err := getArticleToPublish()
+	if err != nil {
+		log.Fatalf("Generate article to publish failed. Error:%v", err)
+	}
+	return httptest.NewRequest("POST", PATH_ARTICLES, bytes.NewReader(article))
 }
 
 func getSearchArticleRequest(searchText string) *http.Request {
@@ -114,6 +120,20 @@ func executeRequestOnRouter(req *http.Request) *httptest.ResponseRecorder {
 	router := createTestRouterWithRoutes()
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	//fmt.Printf("W body: %v", w.Body.String())
 	return w
+}
+
+// TODO : FAKER will be used to get random articles
+func getArticleToPublish() ([]byte, error) {
+	var article domain.Article = domain.Article{
+		Title:    "Best Practices in Go Programming at time : " + time.Now().String(),
+		Intro:    "10 Best Practices tips for go programming language",
+		Body:     "1. Naming Conventions 2. Modularity",
+		PostDate: time.Now().Format(domain.TIME_FORMAT_POST_DATE),
+	}
+	articleStr, err := json.Marshal(article)
+	if err == nil {
+		return articleStr, nil
+	}
+	return nil, err
 }

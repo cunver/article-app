@@ -10,5 +10,6 @@ database:
 
 
 application:
+  useTLS : false   # true -> use https with default 443 port
   useStubDB : false # false -> (Real Mongo DB instance) true -> (Stub DB with sample responses) 
   maxrecordperpage: 12 #Maximum record count per page in query results

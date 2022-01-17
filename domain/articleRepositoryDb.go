@@ -5,12 +5,16 @@ import (
 	"context"
 	"errors"
 	"math"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+const ARTICLES_COLLECTION_NAME string = "articles"
+const TIME_FORMAT_POST_DATE string = "2006-01-02 15:04:05"
 
 type ArticleRepositoryDb struct {
 	client *mongo.Database
@@ -47,6 +51,7 @@ func (d ArticleRepositoryDb) FindOne(id string) (Article, int, error) {
 
 func (d ArticleRepositoryDb) InsertOne(article *Article) (string, error) {
 	articlesCollection := GetArticlesCollection()
+	article.PostDate = time.Now().Format(TIME_FORMAT_POST_DATE)
 	res, err := articlesCollection.InsertOne(context.TODO(), article)
 	if err != nil {
 		return "", err
@@ -135,5 +140,5 @@ func getTotalPage(totalCount uint32, articlePerPage uint32) uint32 {
 }
 
 func GetArticlesCollection() *mongo.Collection {
-	return config.GetMongoDBConnection().Collection("articles")
+	return config.GetMongoDBConnection().Collection(ARTICLES_COLLECTION_NAME)
 }

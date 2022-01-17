@@ -11,6 +11,11 @@ type ArticleRepositoryStub struct {
 	articles []Article
 }
 
+func NewArticleRepositoryStub() ArticleRepositoryStub {
+	articles := generateTestArticle()
+	return ArticleRepositoryStub{articles}
+}
+
 func (s ArticleRepositoryStub) FindAll(currentPage uint32) (ArticleQueryResult, int, error) {
 	return s.getStubArticleQueryResult(), SUCCESS_OK, nil
 }
@@ -29,11 +34,6 @@ func (s ArticleRepositoryStub) FindByText(searchText string, currentPage uint32)
 	articleQueryResult.CurrentPage = currentPage
 	articleQueryResult.Keyword = searchText
 	return articleQueryResult, SUCCESS_OK, nil
-}
-
-func NewArticleRepositoryStub() ArticleRepositoryStub {
-	articles := generateTestArticle()
-	return ArticleRepositoryStub{articles}
 }
 
 func generateTestArticle() []Article {

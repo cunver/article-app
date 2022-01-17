@@ -24,7 +24,7 @@ func GetMongoDBConnection() *mongo.Database {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	err = newClient.Connect(ctx)
 	if err != nil {
-		log.Fatal("Couldn't connected with context", err)
+		log.Printf("Couldn't connected with context. Error:%v", err)
 	}
 	//Cancel context to avoid memory leak
 	defer cancel()
@@ -32,7 +32,7 @@ func GetMongoDBConnection() *mongo.Database {
 	// Ping our db connection
 	err = newClient.Ping(context.Background(), readpref.Primary())
 	if err != nil {
-		log.Fatal("Couldn't connect to the database", err)
+		log.Printf("Couldn't connect to the database. Error: %v", err)
 	} else {
 		log.Println("Connected to the database!")
 	}
